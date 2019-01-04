@@ -18,18 +18,18 @@ func main() {
 	v2 := flag.Bool("v2", false, "Use Bird 2 Format")
 	flag.Parse()
 	fmt.Println("v2:", *v2)
-	routes4 := GetRoutes("data/filter.txt","data/route")
-	routes6 := GetRoutes("data/filter6.txt","data/route6")
+	routes4 := GetRoutes("data/filter.txt", "data/route")
+	routes6 := GetRoutes("data/filter6.txt", "data/route6")
 	if *v2 {
 		routes := append(routes4, routes6...)
-		WriteRoutes(routes,"bird2_roa.conf", true)
+		WriteRoutes(routes, "bird2_roa.conf", true)
 	} else {
-		WriteRoutes(routes4,"bird_roa.conf", false)
-		WriteRoutes(routes6,"bird6_roa.conf", false)
+		WriteRoutes(routes4, "bird_roa.conf", false)
+		WriteRoutes(routes6, "bird6_roa.conf", false)
 	}
 }
 
-func GetRoutes(filterPath string, routePath string) ([]dn42.Route) {
+func GetRoutes(filterPath string, routePath string) []dn42.Route {
 	filters, err := dn42.ParseFilter(filterPath)
 	check(err)
 	routes, err := dn42.ParseRoutes(routePath, filters)
@@ -38,7 +38,7 @@ func GetRoutes(filterPath string, routePath string) ([]dn42.Route) {
 }
 
 func WriteRoutes(routes []dn42.Route, outPath string, v2 bool) {
-  f, err := os.Create(outPath)
+	f, err := os.Create(outPath)
 	check(err)
 	defer f.Close()
 	var pref string = "roa"
