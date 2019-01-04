@@ -57,10 +57,24 @@ func ParseRoutes(dir string, filters []Filter) ([]Route, error) {
 			prefixIP = ip
 			prefixNet = net
 		}
-		var max byte
+		var max byte = 0
+		permitted := false
 		for _, filter := range filters {
-			if filter.Action == "permit" && filter.Prefix.Contains(prefixIP) {
-				max = filter.MaxLen
+			if filter.Prefix.Contains(prefixIP) {
+				if filter.Action == "permit" {
+					permitted = true
+					break
+				}
+			}
+		}
+		if permitted != true {
+			continue
+		}
+		for _, filter := range filters {
+			if filter.Prefix.Contains(prefixIP) {
+				if filter.Action == "permit" && filter.MaxLen > max {
+					max = filter.MaxLen
+				}
 			}
 		}
 		if val, ok := record["max-length"]; ok {
@@ -68,7 +82,7 @@ func ParseRoutes(dir string, filters []Filter) ([]Route, error) {
 			if err != nil {
 				return nil, err
 			}
-			if byte(maxLength) < max {
+			if byte(maxLength) > max {
 				max = byte(maxLength)
 			}
 		}
