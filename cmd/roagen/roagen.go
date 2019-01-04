@@ -1,10 +1,10 @@
 package main
 
 import (
-	"github.com/ags131/go-dn42/dn42"
-	"log"
-	"io/ioutil"
 	"encoding/json"
+	"github.com/ags131/go-dn42/dn42"
+	"io/ioutil"
+	"log"
 )
 
 func main() {

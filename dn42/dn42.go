@@ -63,6 +63,15 @@ func ParseRoutes(dir string, filters []Filter) ([]Route, error) {
 				max = filter.MaxLen
 			}
 		}
+		if val, ok := record["max-length"]; ok {
+			maxLength, err := strconv.ParseInt(val[0], 10, 8)
+			if err != nil {
+				return nil, err
+			}
+			if byte(maxLength) < max {
+				max = byte(maxLength)
+			}
+		}
 		for _, origin := range record["origin"] {
 			var route Route
 			route.MaxLength = max
