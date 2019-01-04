@@ -2,11 +2,8 @@ package dn42
 
 import (
 	"bufio"
-	"io/ioutil"
-	"log"
+	"io"
 	"net"
-	"os"
-	"path"
 	"regexp"
 	"strconv"
 	"strings"
@@ -28,86 +25,74 @@ type Route struct {
 	Ta        string `json:"ta"`
 }
 
-func ParseRoutes(dir string, filters []Filter) ([]Route, error) {
-	files, err := ioutil.ReadDir(dir)
+func ParseRoutes(reader io.Reader, filters []Filter) ([]Route, error) {
+	ret := make([]Route, 0)
+	record, err := ParseObject(reader)
 	if err != nil {
 		return nil, err
 	}
-	ret := make([]Route, 0)
-	for _, f := range files {
-		record, err := ParseObject(path.Join(dir, f.Name()))
+	var prefixIP net.IP
+	var prefixNet *net.IPNet
+	if val, ok := record["route"]; ok {
+		ip, net, err := net.ParseCIDR(val[0])
 		if err != nil {
 			return nil, err
 		}
-		var prefixIP net.IP
-		var prefixNet *net.IPNet
-		if val, ok := record["route"]; ok {
-			ip, net, err := net.ParseCIDR(val[0])
-			if err != nil {
-				return nil, err
-			}
-			prefixIP = ip
-			prefixNet = net
+		prefixIP = ip
+		prefixNet = net
+	}
+	if val, ok := record["route6"]; ok {
+		ip, net, err := net.ParseCIDR(val[0])
+		if err != nil {
+			return nil, err
 		}
-		if val, ok := record["route6"]; ok {
-			ip, net, err := net.ParseCIDR(val[0])
-			if err != nil {
-				return nil, err
-			}
-			prefixIP = ip
-			prefixNet = net
-		}
-		var max byte = 0
-		permitted := false
-		for _, filter := range filters {
-			if filter.Prefix.Contains(prefixIP) {
-				if filter.Action == "permit" {
-					permitted = true
-					break
-				}
+		prefixIP = ip
+		prefixNet = net
+	}
+	var max byte = 0
+	permitted := false
+	for _, filter := range filters {
+		if filter.Prefix.Contains(prefixIP) {
+			if filter.Action == "permit" {
+				permitted = true
+				break
 			}
 		}
-		if permitted != true {
-			continue
-		}
-		for _, filter := range filters {
-			if filter.Prefix.Contains(prefixIP) {
-				if filter.Action == "permit" {
-					max = filter.MaxLen
-				}
+	}
+	if permitted != true {
+		return ret, nil
+	}
+	for _, filter := range filters {
+		if filter.Prefix.Contains(prefixIP) {
+			if filter.Action == "permit" {
+				max = filter.MaxLen
 			}
 		}
-		if val, ok := record["max-length"]; ok {
-			maxLength, err := strconv.ParseInt(val[0], 10, 8)
-			if err != nil {
-				return nil, err
-			}
-			if byte(maxLength) < max {
-				max = byte(maxLength)
-			}
+	}
+	if val, ok := record["max-length"]; ok {
+		maxLength, err := strconv.ParseInt(val[0], 10, 8)
+		if err != nil {
+			return nil, err
 		}
-		for _, origin := range record["origin"] {
-			var route Route
-			route.MaxLength = max
-			route.Prefix = prefixNet.String()
-			route.Asn = origin
-			ret = append(ret, route)
+		if byte(maxLength) < max {
+			max = byte(maxLength)
 		}
+	}
+	for _, origin := range record["origin"] {
+		var route Route
+		route.MaxLength = max
+		route.Prefix = prefixNet.String()
+		route.Asn = origin
+		ret = append(ret, route)
 	}
 	return ret, nil
 }
 
-func ParseObject(path string) (RSPLObject, error) {
+func ParseObject(reader io.Reader) (RSPLObject, error) {
 	var lastAttr string
 	var lastArr []string
 	ret := make(RSPLObject)
-	file, err := os.Open(path)
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer file.Close()
-
-	scanner := bufio.NewScanner(file)
+	scanner := bufio.NewScanner(reader)
 	for scanner.Scan() {
 		line := scanner.Text()
 		key := strings.TrimSpace(line[0:20])
@@ -135,16 +120,10 @@ func ParseObject(path string) (RSPLObject, error) {
 	return ret, nil
 }
 
-func ParseFilter(path string) ([]Filter, error) {
-	file, err := os.Open(path)
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer file.Close()
-
+func ParseFilter(reader io.Reader) ([]Filter, error) {
 	filters := make([]Filter, 0, 0)
 
-	scanner := bufio.NewScanner(file)
+	scanner := bufio.NewScanner(reader)
 	for scanner.Scan() {
 		line := scanner.Text()
 		if strings.HasPrefix(line, "#") || len(line) == 0 {
