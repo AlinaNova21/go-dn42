@@ -27,7 +27,7 @@ func main() {
 	}
 
 	var rpki struct {
-		Roas []dn42.Route `"roas"`
+		Roas []dn42.Route `json:"roas"`
 	}
 
 	rpki.Roas = append(route4, route6...)

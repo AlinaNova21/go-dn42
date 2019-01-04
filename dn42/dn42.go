@@ -59,7 +59,7 @@ func ParseRoutes(dir string, filters []Filter) ([]Route, error) {
 		}
 		var max byte
 		for _, filter := range filters {
-			if filter.Prefix.Contains(prefixIP) {
+			if filter.Action == "permit" && filter.Prefix.Contains(prefixIP) {
 				max = filter.MaxLen
 			}
 		}
